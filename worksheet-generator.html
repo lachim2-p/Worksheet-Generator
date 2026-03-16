@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worksheet Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1a2744;
+  --navy-mid:#2d3f6e;
+  --navy-light:#e8ecf8;
+  --gold:#c8962a;
+  --gold-light:#fdf4e3;
+  --red:#c0392b;
+  --green:#1a6b3c;
+  --paper:#fefcf7;
+  --border:#d4d0c8;
+  --text:#2c2c2c;
+  --muted:#6b6b6b;
+  --radius:10px;
+}
+body{font-family:'DM Sans',sans-serif;background:#f0ece3;min-height:100vh;color:var(--text)}
+
+/* ─── LAYOUT ─── */
+.app{display:grid;grid-template-columns:380px 1fr;min-height:100vh;gap:0}
+@media(max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+
+/* ─── SIDEBAR ─── */
+.sidebar{background:var(--navy);padding:2rem 1.75rem;display:flex;flex-direction:column;gap:1.5rem;position:relative;overflow:hidden}
+.sidebar::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border:40px solid rgba(255,255,255,0.04);border-radius:50%}
+.sidebar::after{content:'';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border:30px solid rgba(200,150,42,0.12);border-radius:50%}
+.logo{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.logo-icon{width:36px;height:36px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:20px;height:20px;fill:#fff}
+.logo-text{font-family:'Crimson Pro',serif;font-size:1.35rem;color:#fff;font-weight:600;line-height:1.2}
+.logo-text span{display:block;font-size:0.75rem;font-weight:400;color:rgba(255,255,255,0.5);font-family:'DM Sans',sans-serif;letter-spacing:0.05em;text-transform:uppercase}
+
+.divider{height:1px;background:rgba(255,255,255,0.1);position:relative;z-index:1}
+
+.field{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1}
+.field label{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.5)}
+.field input,.field select,.field textarea{
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:8px;
+  padding:10px 14px;
+  font-family:'DM Sans',sans-serif;
+  font-size:14px;
+  color:#fff;
+  outline:none;
+  transition:border-color 0.2s,background 0.2s;
+  width:100%;
+}
+.field input::placeholder,.field textarea::placeholder{color:rgba(255,255,255,0.3)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);background:rgba(255,255,255,0.1)}
+.field select option{background:var(--navy);color:#fff}
+.field textarea{resize:vertical;min-height:70px}
+
+/* Difficulty pills */
+.diff-group{display:flex;gap:8px}
+.diff-pill{flex:1;padding:9px 4px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:rgba(255,255,255,0.5);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;text-align:center;transition:all 0.2s;position:relative;overflow:hidden}
+.diff-pill:hover{border-color:rgba(255,255,255,0.35);color:rgba(255,255,255,0.8)}
+.diff-pill.sel-easy{background:#1a6b3c;border-color:#1a6b3c;color:#fff}
+.diff-pill.sel-medium{background:#c8962a;border-color:#c8962a;color:#fff}
+.diff-pill.sel-hard{background:#c0392b;border-color:#c0392b;color:#fff}
+
+/* Question count stepper */
+.stepper{display:flex;align-items:center;gap:0;border:1px solid rgba(255,255,255,0.15);border-radius:8px;overflow:hidden}
+.stepper button{background:rgba(255,255,255,0.07);border:none;color:rgba(255,255,255,0.7);width:40px;height:40px;font-size:18px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background 0.15s;flex-shrink:0}
+.stepper button:hover{background:rgba(255,255,255,0.15);color:#fff}
+.stepper span{flex:1;text-align:center;color:#fff;font-size:16px;font-weight:500;background:transparent}
+
+.gen-btn{
+  margin-top:auto;
+  padding:14px;
+  background:var(--gold);
+  border:none;
+  border-radius:10px;
+  color:#fff;
+  font-family:'DM Sans',sans-serif;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all 0.2s;
+  position:relative;z-index:1;
+  letter-spacing:0.02em;
+}
+.gen-btn:hover:not(:disabled){background:#b5841f;transform:translateY(-1px);box-shadow:0 4px 20px rgba(200,150,42,0.4)}
+.gen-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.gen-btn .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:none}
+.gen-btn.loading .spinner{display:block}
+.gen-btn.loading .btn-text{display:none}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── MAIN CONTENT ─── */
+.main{background:#f0ece3;padding:2rem;display:flex;flex-direction:column;gap:1.5rem;min-height:100vh;overflow-y:auto}
+
+/* Empty state */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:4rem 2rem;text-align:center}
+.empty-icon{width:80px;height:80px;border-radius:50%;background:rgba(26,39,68,0.08);display:flex;align-items:center;justify-content:center}
+.empty-icon svg{width:36px;height:36px;opacity:0.3}
+.empty-title{font-family:'Crimson Pro',serif;font-size:1.6rem;color:var(--navy);font-weight:600}
+.empty-sub{font-size:14px;color:var(--muted);max-width:320px;line-height:1.6}
+
+/* Worksheet paper */
+.ws-wrapper{display:none;flex-direction:column;gap:1rem;animation:fadeUp 0.4s ease}
+.ws-wrapper.visible{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.ws-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.ws-title-block{}
+.ws-title-block h2{font-family:'Crimson Pro',serif;font-size:1.5rem;color:var(--navy);font-weight:700}
+.ws-title-block p{font-size:13px;color:var(--muted)}
+.toolbar-btns{display:flex;gap:8px;flex-wrap:wrap}
+.tl-btn{
+  padding:8px 16px;
+  border-radius:8px;
+  font-family:'DM Sans',sans-serif;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--navy);
+  display:flex;align-items:center;gap:6px;
+  transition:all 0.15s;
+}
+.tl-btn:hover{background:var(--navy-light);border-color:var(--navy-mid)}
+.tl-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tl-btn svg{width:14px;height:14px}
+
+/* The actual paper */
+.paper{
+  background:var(--paper);
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  padding:3rem 3.5rem;
+  box-shadow:0 2px 20px rgba(0,0,0,0.06);
+  position:relative;
+}
+.paper::before{
+  content:'';
+  position:absolute;
+  left:0;top:0;bottom:0;
+  width:4px;
+  background:var(--gold);
+  border-radius:var(--radius) 0 0 var(--radius);
+}
+
+.ws-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:2px solid var(--navy)}
+.ws-header-left{}
+.ws-topic{font-family:'Crimson Pro',serif;font-size:1.8rem;font-weight:700;color:var(--navy);line-height:1.2}
+.ws-meta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.ws-meta span{display:flex;align-items:center;gap:4px}
+.ws-meta svg{width:12px;height:12px;opacity:0.5}
+.ws-header-right{display:flex;flex-direction:column;gap:10px;min-width:220px}
+.info-line{display:flex;align-items:center;gap:8px}
+.info-line label{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);width:55px;flex-shrink:0}
+.info-line .line{flex:1;height:1px;border-bottom:1.5px solid var(--navy);opacity:0.25}
+
+.diff-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase}
+.badge-easy{background:#d4edda;color:var(--green)}
+.badge-medium{background:#fef3cd;color:#856404}
+.badge-hard{background:#f8d7da;color:var(--red)}
+
+.ws-instructions{background:var(--navy-light);border-left:3px solid var(--navy-mid);padding:12px 16px;border-radius:0 6px 6px 0;font-size:13px;color:var(--navy);margin-bottom:1.5rem;line-height:1.6}
+.ws-instructions strong{font-weight:600}
+
+/* Questions */
+.questions-section{display:flex;flex-direction:column;gap:0}
+.section-header{display:flex;align-items:center;gap:10px;margin:1.25rem 0 1rem}
+.section-header h3{font-family:'Crimson Pro',serif;font-size:1.1rem;color:var(--navy);font-weight:600}
+.section-line{flex:1;height:1px;background:var(--border)}
+.section-count{font-size:11px;color:var(--muted);font-weight:500;background:var(--navy-light);padding:2px 8px;border-radius:20px}
+
+.question-item{margin-bottom:1.5rem;page-break-inside:avoid}
+.q-row{display:flex;gap:12px;align-items:flex-start}
+.q-num{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:'DM Sans',sans-serif}
+.q-body{flex:1}
+.q-text{font-size:14.5px;color:var(--text);line-height:1.65;font-family:'DM Sans',sans-serif;font-weight:400}
+.q-text strong{font-weight:600;color:var(--navy)}
+
+/* MCQ options */
+.mcq-opts{display:flex;flex-direction:column;gap:6px;margin-top:10px;margin-left:2px}
+.mcq-opt{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13.5px;color:var(--text);font-family:'DM Sans',sans-serif}
+.opt-letter{width:22px;height:22px;border:1.5px solid var(--navy);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--navy);flex-shrink:0}
+
+/* Answer lines */
+.ans-lines{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.ans-line{height:1px;background:rgba(0,0,0,0.2);width:100%}
+.ans-line-short{width:50%}
+
+/* True/False */
+.tf-opts{display:flex;gap:12px;margin-top:10px}
+.tf-opt{display:flex;align-items:center;gap:8px;padding:7px 16px;border:1.5px solid var(--border);border-radius:6px;font-size:13.5px;color:var(--text)}
+.tf-circle{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--navy);flex-shrink:0}
+
+/* Fill blank */
+.fill-blank{display:inline-block;border-bottom:2px solid var(--navy);min-width:100px;height:20px;margin:0 4px;vertical-align:bottom}
+
+/* Answer key */
+.answer-key{background:var(--paper);border:2px solid var(--gold);border-radius:var(--radius);overflow:hidden;display:none}
+.answer-key.visible{display:block;animation:fadeUp 0.35s ease}
+.ak-header{background:var(--gold);padding:14px 2rem;display:flex;align-items:center;gap:10px}
+.ak-header svg{width:18px;height:18px;fill:#fff}
+.ak-header h3{font-family:'Crimson Pro',serif;font-size:1.1rem;color:#fff;font-weight:700}
+.ak-header span{font-size:12px;color:rgba(255,255,255,0.7);margin-left:auto}
+.ak-body{padding:1.5rem 2rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.ak-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;background:#fdf4e3;border:1px solid rgba(200,150,42,0.2)}
+.ak-num{width:24px;height:24px;border-radius:50%;background:var(--gold);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'DM Sans',sans-serif}
+.ak-ans{font-size:13px;color:var(--navy);line-height:1.4;font-weight:500}
+.ak-type{font-size:11px;color:var(--muted);margin-top:2px;font-weight:400}
+.ak-full{grid-column:1/-1;padding:10px 12px;background:#fdf4e3;border-radius:8px;border:1px solid rgba(200,150,42,0.2)}
+.ak-full .ak-text{font-size:13px;color:var(--navy);line-height:1.5;font-weight:400;margin-top:4px}
+
+/* Error toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#c0392b;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;z-index:999;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.2)}
+.toast.show{display:block;animation:fadeUp 0.3s ease}
+
+/* Scoring / point display */
+.q-pts{font-size:11px;color:var(--muted);font-weight:500;float:right;padding:2px 8px;border:1px solid var(--border);border-radius:20px;font-family:'DM Sans',sans-serif}
+
+@media print{
+  .sidebar,.ws-toolbar,.answer-key{display:none!important}
+  .main{padding:0}
+  .paper{box-shadow:none;border:none;border-radius:0;padding:1.5cm 2cm}
+  .paper::before{display:none}
+  body,html{background:#fff}
+  .app{grid-template-columns:1fr}
+  .ws-wrapper{display:flex!important}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h3v1.5H8V10z"/></svg>
+    </div>
+    <div class="logo-text">WorksheetAI</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="field">
+    <label>Topic / Subject</label>
+    <input type="text" id="topicInput" placeholder="e.g. Photosynthesis, World War II..." maxlength="120">
+  </div>
+
+  <div class="field">
+    <label>Grade Level</label>
+    <select id="gradeSelect">
+      <option value="Grade 4–5 (Ages 9–11)">Grade 4–5 (Ages 9–11)</option>
+      <option value="Grade 6–7 (Ages 11–13)" selected>Grade 6–7 (Ages 11–13)</option>
+      <option value="Grade 8–9 (Ages 13–15)">Grade 8–9 (Ages 13–15)</option>
+      <option value="Grade 10–12 (Ages 15–18)">Grade 10–12 (Ages 15–18)</option>
+      <option value="College / University">College / University</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Difficulty Level</label>
+    <div class="diff-group">
+      <button class="diff-pill" data-diff="Easy" onclick="selectDiff(this)">Easy</button>
+      <button class="diff-pill sel-medium" data-diff="Medium" onclick="selectDiff(this)">Medium</button>
+      <button class="diff-pill" data-diff="Hard" onclick="selectDiff(this)">Hard</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Question Types</label>
+    <select id="qtypeSelect">
+      <option value="Mixed (MCQ, Short Answer, True/False)">Mixed (MCQ, Short Answer, T/F)</option>
+      <option value="Multiple Choice only">Multiple Choice only</option>
+      <option value="Short Answer only">Short Answer only</option>
+      <option value="True/False only">True/False only</option>
+      <option value="Fill in the Blank">Fill in the Blank</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Number of Questions</label>
+    <div class="stepper">
+      <button onclick="changeQ(-1)">−</button>
+      <span id="qCount">10</span>
+      <button onclick="changeQ(1)">+</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Special Instructions (optional)</label>
+    <textarea id="extraInstructions" placeholder="e.g. Focus on causes, include a diagram question..."></textarea>
+  </div>
+
+  <button class="gen-btn" id="genBtn" onclick="generate()">
+    <div class="spinner"></div>
+    <span class="btn-text">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Generate Worksheet
+    </span>
+  </button>
+</aside>
+
+<!-- MAIN AREA -->
+<main class="main" id="mainArea">
+
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="var(--navy)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h3v1.5H8V10z"/></svg>
+    </div>
+    <div class="empty-title">Ready to build your worksheet</div>
+    <div class="empty-sub">Enter a topic, pick your difficulty level and question count, then hit Generate. Your worksheet and answer key will appear here instantly.</div>
+  </div>
+
+  <div class="ws-wrapper" id="wsWrapper">
+
+    <div class="ws-toolbar">
+      <div class="ws-title-block">
+        <h2 id="wsToolbarTitle">Worksheet</h2>
+        <p id="wsToolbarMeta"></p>
+      </div>
+      <div class="toolbar-btns">
+        <button class="tl-btn" onclick="toggleKey()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          <span id="keyBtnTxt">Show Answer Key</span>
+        </button>
+        <button class="tl-btn" onclick="window.print()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print / Save PDF
+        </button>
+        <button class="tl-btn" onclick="clearWs()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          New Worksheet
+        </button>
+      </div>
+    </div>
+
+    <!-- Paper -->
+    <div class="paper" id="wsPaper">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- Answer Key -->
+    <div class="answer-key" id="answerKey">
+      <div class="ak-header">
+        <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <h3>Answer Key</h3>
+        <span id="akMeta"></span>
+      </div>
+      <div class="ak-body" id="akBody"></div>
+    </div>
+
+  </div>
+
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let qCount = 10;
+let difficulty = 'Medium';
+let keyVisible = false;
+let currentData = null;
+
+function changeQ(d) {
+  qCount = Math.min(20, Math.max(3, qCount + d));
+  document.getElementById('qCount').textContent = qCount;
+}
+
+function selectDiff(btn) {
+  document.querySelectorAll('.diff-pill').forEach(b => {
+    b.className = 'diff-pill';
+  });
+  difficulty = btn.dataset.diff;
+  btn.classList.add('sel-' + difficulty.toLowerCase());
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function toggleKey() {
+  keyVisible = !keyVisible;
+  document.getElementById('answerKey').classList.toggle('visible', keyVisible);
+  document.getElementById('keyBtnTxt').textContent = keyVisible ? 'Hide Answer Key' : 'Show Answer Key';
+}
+
+function clearWs() {
+  document.getElementById('wsWrapper').classList.remove('visible');
+  document.getElementById('emptyState').style.display = '';
+  keyVisible = false;
+  currentData = null;
+}
+
+async function generate() {
+  const topic = document.getElementById('topicInput').value.trim();
+  if (!topic) { showToast('Please enter a topic first.'); return; }
+
+  const grade = document.getElementById('gradeSelect').value;
+  const qtype = document.getElementById('qtypeSelect').value;
+  const extra = document.getElementById('extraInstructions').value.trim();
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  const prompt = `You are an expert teacher and curriculum designer. Generate a complete student worksheet.
+
+Topic: "${topic}"
+Grade Level: ${grade}
+Difficulty: ${difficulty}
+Question Types: ${qtype}
+Number of Questions: ${qCount}
+${extra ? 'Special Instructions: ' + extra : ''}
+
+Respond ONLY with a valid JSON object (no markdown, no extra text) in this exact structure:
+{
+  "title": "Worksheet title",
+  "subject": "Subject name",
+  "topic": "${topic}",
+  "grade": "${grade}",
+  "difficulty": "${difficulty}",
+  "duration": "Estimated time e.g. 30 minutes",
+  "totalPoints": 100,
+  "instructions": "General instructions for students (2–3 sentences)",
+  "sections": [
+    {
+      "type": "MCQ",
+      "title": "Section A: Multiple Choice",
+      "pointsEach": 5,
+      "questions": [
+        {
+          "id": 1,
+          "text": "Question text here?",
+          "options": ["A. Option one", "B. Option two", "C. Option three", "D. Option four"],
+          "answer": "B. Option two",
+          "explanation": "Brief explanation of why this is correct"
+        }
+      ]
+    },
+    {
+      "type": "ShortAnswer",
+      "title": "Section B: Short Answer",
+      "pointsEach": 10,
+      "questions": [
+        {
+          "id": 5,
+          "text": "Question text here?",
+          "answer": "Model answer (2–4 sentences)",
+          "explanation": "Key points that should be mentioned"
+        }
+      ]
+    },
+    {
+      "type": "TrueFalse",
+      "title": "Section C: True or False",
+      "pointsEach": 5,
+      "questions": [
+        {
+          "id": 8,
+          "text": "Statement here.",
+          "answer": "True",
+          "explanation": "Explanation"
+        }
+      ]
+    }
+  ]
+}
+
+IMPORTANT RULES:
+- Generate exactly ${qCount} questions total spread across sections based on question type setting
+- If type is "Multiple Choice only", only include MCQ section
+- If type is "Short Answer only", only include ShortAnswer section
+- If type is "True/False only", only include TrueFalse section
+- If type is "Fill in the Blank", use type "FillBlank" with text containing _____ for blanks
+- If type is "Mixed", include 2–3 sections with varied question types
+- Adjust difficulty appropriately: Easy = recall, Medium = application, Hard = analysis/evaluation
+- Make questions accurate, curriculum-appropriate, and educational
+- Total points should equal ${qCount <= 10 ? 100 : qCount * 10}
+- Ensure all answers are factually correct`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error('API error: ' + res.status);
+    const data = await res.json();
+    let raw = data.content.map(b => b.text || '').join('');
+    raw = raw.replace(/```json|```/g, '').trim();
+    const ws = JSON.parse(raw);
+    currentData = ws;
+    renderWorksheet(ws);
+  } catch (e) {
+    console.error(e);
+    showToast('Something went wrong. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+function renderWorksheet(ws) {
+  const badgeClass = { Easy: 'badge-easy', Medium: 'badge-medium', Hard: 'badge-hard' }[ws.difficulty] || 'badge-medium';
+
+  let qAllNum = 0;
+  let sectionsHTML = '';
+  let akItems = [];
+
+  ws.sections.forEach(sec => {
+    let qHTML = '';
+    sec.questions.forEach(q => {
+      qAllNum++;
+      qHTML += renderQuestion(q, sec.type, sec.pointsEach);
+      akItems.push({ id: qAllNum, q: q, type: sec.type, pts: sec.pointsEach });
+    });
+    sectionsHTML += `
+      <div class="section-header">
+        <h3>${sec.title}</h3>
+        <div class="section-line"></div>
+        <span class="section-count">${sec.pointsEach} pts each</span>
+      </div>
+      <div class="questions-section">${qHTML}</div>
+    `;
+  });
+
+  const paperHTML = `
+    <div class="ws-header">
+      <div class="ws-header-left">
+        <div class="ws-topic">${ws.title}</div>
+        <div class="ws-meta">
+          <span>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.93V17c0 .55-.45 1-1 1s-1-.45-1-1v-.07C7.96 16.44 6 14.47 6 12c0-2.76 2.24-5 5-5s5 2.24 5 5c0 2.47-1.96 4.44-4 4.93z"/></svg>
+            ${ws.grade}
+          </span>
+          <span>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+            ${ws.duration}
+          </span>
+          <span><span class="diff-badge ${badgeClass}">${ws.difficulty}</span></span>
+          <span>Total: ${ws.totalPoints} points</span>
+        </div>
+      </div>
+      <div class="ws-header-right">
+        <div class="info-line"><label>Name</label><div class="line"></div></div>
+        <div class="info-line"><label>Date</label><div class="line"></div></div>
+        <div class="info-line"><label>Class</label><div class="line"></div></div>
+        <div class="info-line"><label>Score</label><div class="line"></div></div>
+      </div>
+    </div>
+    <div class="ws-instructions"><strong>Instructions:</strong> ${ws.instructions}</div>
+    ${sectionsHTML}
+  `;
+
+  document.getElementById('wsPaper').innerHTML = paperHTML;
+
+  // Toolbar meta
+  document.getElementById('wsToolbarTitle').textContent = ws.title;
+  document.getElementById('wsToolbarMeta').textContent = ws.grade + ' · ' + qAllNum + ' questions · ' + ws.totalPoints + ' points';
+
+  // Answer key
+  let akHTML = '';
+  const longTypes = ['ShortAnswer', 'FillBlank'];
+  const shortItems = akItems.filter(i => !longTypes.includes(i.type));
+  const longItems = akItems.filter(i => longTypes.includes(i.type));
+
+  shortItems.forEach(item => {
+    akHTML += `
+      <div class="ak-item">
+        <div class="ak-num">${item.id}</div>
+        <div>
+          <div class="ak-ans">${item.q.answer}</div>
+          <div class="ak-type">${item.type === 'MCQ' ? 'Multiple Choice' : 'True / False'} · ${item.pts} pts</div>
+          ${item.q.explanation ? '<div class="ak-type" style="margin-top:3px;font-style:italic">' + item.q.explanation + '</div>' : ''}
+        </div>
+      </div>`;
+  });
+
+  longItems.forEach(item => {
+    akHTML += `
+      <div class="ak-full">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="ak-num">${item.id}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--navy)">${item.type === 'FillBlank' ? 'Fill in the Blank' : 'Short Answer'} · ${item.pts} pts</div>
+        </div>
+        <div class="ak-text">${item.q.answer}</div>
+        ${item.q.explanation ? '<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">Key points: ' + item.q.explanation + '</div>' : ''}
+      </div>`;
+  });
+
+  document.getElementById('akBody').innerHTML = akHTML;
+  document.getElementById('akMeta').textContent = qAllNum + ' answers · ' + ws.totalPoints + ' total points';
+
+  // Show worksheet
+  document.getElementById('emptyState').style.display = 'none';
+  const wrapper = document.getElementById('wsWrapper');
+  wrapper.classList.remove('visible');
+  void wrapper.offsetWidth;
+  wrapper.classList.add('visible');
+
+  // Reset key
+  keyVisible = false;
+  document.getElementById('answerKey').classList.remove('visible');
+  document.getElementById('keyBtnTxt').textContent = 'Show Answer Key';
+}
+
+function renderQuestion(q, type, pts) {
+  let bodyHTML = `<div class="q-text">${q.text}</div>`;
+
+  if (type === 'MCQ') {
+    const opts = q.options || [];
+    bodyHTML += `<div class="mcq-opts">` + opts.map(o => {
+      const letter = o.charAt(0);
+      const rest = o.substring(2).trim();
+      return `<div class="mcq-opt"><div class="opt-letter">${letter}</div><span>${rest}</span></div>`;
+    }).join('') + `</div>`;
+  } else if (type === 'TrueFalse') {
+    bodyHTML += `<div class="tf-opts">
+      <div class="tf-opt"><div class="tf-circle"></div>True</div>
+      <div class="tf-opt"><div class="tf-circle"></div>False</div>
+    </div>`;
+  } else if (type === 'ShortAnswer') {
+    bodyHTML += `<div class="ans-lines"><div class="ans-line"></div><div class="ans-line"></div><div class="ans-line"></div></div>`;
+  } else if (type === 'FillBlank') {
+    const rendered = q.text.replace(/_____/g, '<span class="fill-blank"></span>');
+    bodyHTML = `<div class="q-text">${rendered}</div>`;
+  }
+
+  return `
+    <div class="question-item">
+      <div class="q-row">
+        <div class="q-num">${q.id}</div>
+        <div class="q-body">
+          ${bodyHTML}
+        </div>
+        <span class="q-pts">${pts} pts</span>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>
