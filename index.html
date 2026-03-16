@@ -491,7 +491,7 @@ IMPORTANT RULES:
 - Total points should equal ${qCount <= 10 ? 100 : qCount * 10}
 - Ensure all answers are factually correct`;
 
-  const API_KEY = 'AIzaSyDJpgevvWnrFIc6zOYrl9ur0gtrbM-GWBc';
+  const API_KEY = 'YOUR_GEMINI_API_KEY_HERE';
 
   if (!API_KEY || API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
     showToast('Please add your Gemini API key to the file first.');
@@ -513,19 +513,34 @@ IMPORTANT RULES:
       }
     );
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData?.error?.message || 'API error: ' + res.status);
-    }
     const data = await res.json();
+
+    if (!res.ok) {
+      const errMsg = data?.error?.message || data?.error?.status || ('API error: ' + res.status);
+      throw new Error(errMsg);
+    }
+
     let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!raw) throw new Error('Empty response from Gemini. Try again.');
     raw = raw.replace(/```json|```/g, '').trim();
-    const ws = JSON.parse(raw);
+
+    let ws;
+    try {
+      ws = JSON.parse(raw);
+    } catch(parseErr) {
+      const jsonStart = raw.indexOf('{');
+      const jsonEnd = raw.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        ws = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+      } else {
+        throw new Error('Could not parse response. Please try again.');
+      }
+    }
     currentData = ws;
     renderWorksheet(ws);
   } catch (e) {
-    console.error(e);
-    showToast('Something went wrong. Please check your API key and try again.');
+    console.error('Full error:', e);
+    showToast('Error: ' + (e.message || 'Unknown error. Open browser console for details.'));
   } finally {
     btn.disabled = false;
     btn.classList.remove('loading');
